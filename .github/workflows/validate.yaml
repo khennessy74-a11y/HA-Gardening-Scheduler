@@ -31,10 +31,22 @@ jobs:
               print(f"OK {path}")
           PY
 
+  hacs-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: Validate HACS repository
         uses: hacs/action@main
         with:
           category: integration
+
+  home-assistant-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Validate Home Assistant integration
         uses: home-assistant/actions/hassfest@master
