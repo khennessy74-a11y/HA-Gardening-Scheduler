@@ -20,23 +20,39 @@ class GardeningConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
-        """Collect location and local weather source before enabling tasks."""
-        errors = {}
+        """Collect the user's location and local weather source."""
         if user_input is not None:
-            await self.async_set_unique_id(
-                f"{user_input[CONF_COUNTRY].lower()}:{user_input[CONF_LOCATION].strip().lower()}:{user_input.get(CONF_POSTCODE, '').strip().lower()}"
-            )
+            country = user_input[CONF_COUNTRY].strip().upper()
+            location = user_input[CONF_LOCATION].strip()
+            postcode = user_input.get(CONF_POSTCODE, "").strip()
+            if not country or not location:
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=self._schema(),
+                    errors={"base": "location_required"},
+                )
+            user_input[CONF_COUNTRY] = country
+            user_input[CONF_LOCATION] = location
+            user_input[CONF_POSTCODE] = postcode
+            await self.async_set_unique_id(f"{country}:{location.lower()}:{postcode.lower()}")
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
-                title=f"Gardening Scheduler — {user_input[CONF_LOCATION]}",
+                title=f"Gardening Scheduler — {location}",
                 data=user_input,
             )
 
-        schema = vol.Schema({
-            vol.Required(CONF_COUNTRY, default="GB"): str,
+        return self.async_show_form(step_id="user", data_schema=self._schema())
+
+    def _schema(self):
+        """Build form with defaults derived from Home Assistant's configured location."""
+        latitude = getattr(self.hass.config, "latitude", 0.0)
+        country_default = getattr(self.hass.config, "country", None) or "GB"
+        hemisphere_default = "southern" if latitude < 0 else "northern"
+        return vol.Schema({
+            vol.Required(CONF_COUNTRY, default=country_default): str,
             vol.Required(CONF_LOCATION): str,
             vol.Optional(CONF_POSTCODE, default=""): str,
-            vol.Required(CONF_HEMISPHERE, default="northern"): vol.In(HEMISPHERES),
+            vol.Required(CONF_HEMISPHERE, default=hemisphere_default): vol.In(HEMISPHERES),
             vol.Required(CONF_CLIMATE, default="oceanic"): vol.In(CLIMATES),
             vol.Required(CONF_WEATHER_ENTITY): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="weather")
@@ -50,22 +66,22 @@ class GardeningConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             ),
         })
-        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return GardeningOptionsFlow(config_entry)
+        """Return options flow."""
+        return GardeningOptionsFlow()
 
 
 class GardeningOptionsFlow(config_entries.OptionsFlow):
-    """Allow categories and local setup to be changed later."""
-
-    def __init__(self, config_entry):
-        self.config_entry = config_entry
+    """Allow the location, weather source and categories to be changed later."""
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
+            user_input[CONF_COUNTRY] = user_input[CONF_COUNTRY].strip().upper()
+            user_input[CONF_LOCATION] = user_input[CONF_LOCATION].strip()
+            user_input[CONF_POSTCODE] = user_input.get(CONF_POSTCODE, "").strip()
             return self.async_create_entry(title="", data=user_input)
 
         current = {**self.config_entry.data, **self.config_entry.options}
@@ -74,7 +90,7 @@ class GardeningOptionsFlow(config_entries.OptionsFlow):
             vol.Required(CONF_LOCATION, default=current.get(CONF_LOCATION, "")): str,
             vol.Optional(CONF_POSTCODE, default=current.get(CONF_POSTCODE, "")): str,
             vol.Required(CONF_HEMISPHERE, default=current.get(CONF_HEMISPHERE, "northern")): vol.In(HEMISPHERES),
-            vol.Required(CONF_CLIMATE, default=current.get(CONF_CLIMATE, "unknown")): vol.In(CLIMATES),
+            vol.Required(CONF_CLIMATE, default=current.get(CONF_CLIMATE, "oceanic")): vol.In(CLIMATES),
             vol.Required(CONF_WEATHER_ENTITY, default=current.get(CONF_WEATHER_ENTITY)): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="weather")
             ),
