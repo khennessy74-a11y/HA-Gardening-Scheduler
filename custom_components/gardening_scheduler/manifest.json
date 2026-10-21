@@ -1,0 +1,11 @@
+{
+  "domain": "gardening_scheduler",
+  "name": "Gardening Scheduler",
+  "codeowners": ["khennessy74-a11y"],
+  "config_flow": true,
+  "documentation": "https://github.com/khennessy74-a11y/HA-Gardening-Scheduler",
+  "iot_class": "cloud_polling",
+  "integration_type": "service",
+  "version": "0.1.0",
+  "requirements": []
+}
