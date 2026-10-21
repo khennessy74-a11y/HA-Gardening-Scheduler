@@ -1,0 +1,15 @@
+# Example cards for a Home Assistant dashboard.
+# Replace entity IDs if your config-entry slug differs.
+type: vertical-stack
+cards:
+  - type: entities
+    title: Gardening Scheduler
+    entities:
+      - entity: sensor.gardening_scheduler_tasks_due
+      - entity: sensor.gardening_scheduler_next_task
+      - entity: sensor.gardening_scheduler_frost_risk
+  - type: markdown
+    title: Garden weather advice
+    content: >
+      Check the Frost risk sensor attributes for forecast lows and advice.
+      Seasonal tasks are general reminders; local conditions should take priority.
