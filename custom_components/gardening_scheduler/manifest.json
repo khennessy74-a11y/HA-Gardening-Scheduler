@@ -5,8 +5,8 @@
   "config_flow": true,
   "documentation": "https://github.com/khennessy74-a11y/HA-Gardening-Scheduler",
   "integration_type": "service",
-  "issue_tracker": "https://github.com/khennessy74-a11y/HA-Gardening-Scheduler/issues",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/khennessy74-a11y/HA-Gardening-Scheduler/issues",
   "requirements": [],
   "version": "0.1.0"
 }
