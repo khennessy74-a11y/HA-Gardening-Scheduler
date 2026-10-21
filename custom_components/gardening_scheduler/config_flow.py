@@ -13,6 +13,33 @@ from .const import (
     CONF_WEATHER_ENTITY, DEFAULT_CATEGORIES, DOMAIN, HEMISPHERES,
 )
 
+# Broad starting defaults only; large or geographically diverse countries stay
+# unknown so users can select a more representative local climate profile.
+OCEANIC_COUNTRIES = {"GB", "IE", "NZ", "NL", "BE", "DK"}
+MEDITERRANEAN_COUNTRIES = {"ES", "PT", "IT", "GR", "CY", "MT"}
+CONTINENTAL_COUNTRIES = {"DE", "PL", "CZ", "SK", "HU", "RO", "UA"}
+COLD_COUNTRIES = {"IS", "NO", "SE", "FI"}
+ARID_COUNTRIES = {"AE", "SA", "QA", "KW", "OM", "BH"}
+TROPICAL_COUNTRIES = {"SG", "MY", "TH", "PH", "ID", "LK"}
+SUBTROPICAL_COUNTRIES = {"JP", "KR", "TW", "BD"}
+SOUTHERN_COUNTRIES = {"AU", "NZ", "ZA", "AR", "CL", "UY", "PY", "BO", "PE"}
+
+
+def _default_climate(country: str) -> str:
+    """Return a broad climate default for onboarding, not a precise local forecast."""
+    for countries, climate in (
+        (OCEANIC_COUNTRIES, "oceanic"),
+        (MEDITERRANEAN_COUNTRIES, "mediterranean"),
+        (CONTINENTAL_COUNTRIES, "continental"),
+        (COLD_COUNTRIES, "cold"),
+        (ARID_COUNTRIES, "arid"),
+        (TROPICAL_COUNTRIES, "tropical"),
+        (SUBTROPICAL_COUNTRIES, "subtropical"),
+    ):
+        if country in countries:
+            return climate
+    return "unknown"
+
 
 class GardeningConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle initial setup."""
@@ -20,7 +47,7 @@ class GardeningConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
-        """Collect the user's location and local weather source."""
+        """Ask for country and locality first."""
         if user_input is not None:
             country = user_input[CONF_COUNTRY].strip().upper()
             location = user_input[CONF_LOCATION].strip()
@@ -28,46 +55,58 @@ class GardeningConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not country or not location:
                 return self.async_show_form(
                     step_id="user",
-                    data_schema=self._schema(),
+                    data_schema=self._location_schema(),
                     errors={"base": "location_required"},
                 )
-            user_input[CONF_COUNTRY] = country
-            user_input[CONF_LOCATION] = location
-            user_input[CONF_POSTCODE] = postcode
-            # A single config entry avoids duplicate service registration. The
-            # location and climate profile can be changed later in Options.
-            await self.async_set_unique_id(DOMAIN)
-            self._abort_if_unique_id_configured()
-            return self.async_create_entry(
-                title=f"Gardening Scheduler — {location}",
-                data=user_input,
-            )
+            self._location_input = {
+                CONF_COUNTRY: country,
+                CONF_LOCATION: location,
+                CONF_POSTCODE: postcode,
+            }
+            return await self.async_step_preferences()
 
-        return self.async_show_form(step_id="user", data_schema=self._schema())
+        return self.async_show_form(step_id="user", data_schema=self._location_schema())
 
-    def _schema(self):
-        """Build form with defaults derived from Home Assistant's configured location."""
-        latitude = getattr(self.hass.config, "latitude", 0.0)
+    def _location_schema(self):
         country_default = getattr(self.hass.config, "country", None) or "GB"
-        hemisphere_default = "southern" if latitude < 0 else "northern"
         return vol.Schema({
             vol.Required(CONF_COUNTRY, default=country_default): str,
             vol.Required(CONF_LOCATION): str,
             vol.Optional(CONF_POSTCODE, default=""): str,
-            vol.Required(CONF_HEMISPHERE, default=hemisphere_default): vol.In(HEMISPHERES),
-            vol.Required(CONF_CLIMATE, default="unknown"): vol.In(CLIMATES),
-            vol.Required(CONF_WEATHER_ENTITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="weather")
-            ),
-            vol.Optional(CONF_NOTIFY_SERVICE, default=""): str,
-            vol.Required(CONF_CATEGORIES, default=DEFAULT_CATEGORIES): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=[{"value": key, "label": label} for key, label in CATEGORIES.items()],
-                    multiple=True,
-                    mode=selector.SelectSelectorMode.LIST,
-                )
-            ),
         })
+
+    async def async_step_preferences(self, user_input=None):
+        """Use the chosen country to preselect broad regional gardening settings."""
+        location = getattr(self, "_location_input", {})
+        country = location.get(CONF_COUNTRY, "GB")
+        if user_input is not None:
+            await self.async_set_unique_id(DOMAIN)
+            self._abort_if_unique_id_configured()
+            return self.async_create_entry(
+                title=f"Gardening Scheduler — {location[CONF_LOCATION]}",
+                data={**location, **user_input},
+            )
+
+        hemisphere_default = "southern" if country in SOUTHERN_COUNTRIES else "northern"
+        climate_default = _default_climate(country)
+        return self.async_show_form(
+            step_id="preferences",
+            data_schema=vol.Schema({
+                vol.Required(CONF_HEMISPHERE, default=hemisphere_default): vol.In(HEMISPHERES),
+                vol.Required(CONF_CLIMATE, default=climate_default): vol.In(CLIMATES),
+                vol.Required(CONF_WEATHER_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="weather")
+                ),
+                vol.Optional(CONF_NOTIFY_SERVICE, default=""): str,
+                vol.Required(CONF_CATEGORIES, default=DEFAULT_CATEGORIES): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[{"value": key, "label": label} for key, label in CATEGORIES.items()],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.LIST,
+                    )
+                ),
+            }),
+        )
 
     @staticmethod
     @callback
