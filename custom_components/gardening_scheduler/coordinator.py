@@ -98,7 +98,8 @@ class GardeningCoordinator(DataUpdateCoordinator):
         for task in TASKS:
             if task["category"] not in categories or month not in task["months"]:
                 continue
-            if "all" not in task["climates"] and climate not in task["climates"] and climate != "unknown":
+            # When the climate is unknown, show only tasks safe to present broadly.
+            if "all" not in task["climates"] and climate not in task["climates"]:
                 continue
             record = self.task_state.get(task["id"], {})
             if record.get("completed_on") == today:
