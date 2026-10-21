@@ -4,6 +4,7 @@
   "codeowners": ["khennessy74-a11y"],
   "config_flow": true,
   "documentation": "https://github.com/khennessy74-a11y/HA-Gardening-Scheduler",
+  "issue_tracker": "https://github.com/khennessy74-a11y/HA-Gardening-Scheduler/issues",
   "iot_class": "cloud_polling",
   "integration_type": "service",
   "version": "0.1.0",
