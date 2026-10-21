@@ -34,7 +34,9 @@ class GardeningConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             user_input[CONF_COUNTRY] = country
             user_input[CONF_LOCATION] = location
             user_input[CONF_POSTCODE] = postcode
-            await self.async_set_unique_id(f"{country}:{location.lower()}:{postcode.lower()}")
+            # A single config entry avoids duplicate service registration. The
+            # location and climate profile can be changed later in Options.
+            await self.async_set_unique_id(DOMAIN)
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
                 title=f"Gardening Scheduler — {location}",
@@ -53,7 +55,7 @@ class GardeningConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required(CONF_LOCATION): str,
             vol.Optional(CONF_POSTCODE, default=""): str,
             vol.Required(CONF_HEMISPHERE, default=hemisphere_default): vol.In(HEMISPHERES),
-            vol.Required(CONF_CLIMATE, default="oceanic"): vol.In(CLIMATES),
+            vol.Required(CONF_CLIMATE, default="unknown"): vol.In(CLIMATES),
             vol.Required(CONF_WEATHER_ENTITY): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="weather")
             ),
@@ -90,7 +92,7 @@ class GardeningOptionsFlow(config_entries.OptionsFlow):
             vol.Required(CONF_LOCATION, default=current.get(CONF_LOCATION, "")): str,
             vol.Optional(CONF_POSTCODE, default=current.get(CONF_POSTCODE, "")): str,
             vol.Required(CONF_HEMISPHERE, default=current.get(CONF_HEMISPHERE, "northern")): vol.In(HEMISPHERES),
-            vol.Required(CONF_CLIMATE, default=current.get(CONF_CLIMATE, "oceanic")): vol.In(CLIMATES),
+            vol.Required(CONF_CLIMATE, default=current.get(CONF_CLIMATE, "unknown")): vol.In(CLIMATES),
             vol.Required(CONF_WEATHER_ENTITY, default=current.get(CONF_WEATHER_ENTITY)): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="weather")
             ),
