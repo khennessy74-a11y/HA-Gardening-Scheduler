@@ -2,12 +2,18 @@
   "config": {
     "step": {
       "user": {
-        "title": "Set up Gardening Scheduler",
-        "description": "Choose your location and weather source. Seasonal guidance uses your hemisphere and climate profile; weather alerts use the selected Home Assistant weather entity.",
+        "title": "Where is your garden?",
+        "description": "Choose your country and locality first. These details are used to select a broad regional starting profile.",
         "data": {
           "country": "Country code (for example GB, IE, US, AU)",
           "location": "Town or locality",
-          "postcode": "Postcode or ZIP code (optional)",
+          "postcode": "Postcode or ZIP code (optional)"
+        }
+      },
+      "preferences": {
+        "title": "Your garden and weather",
+        "description": "The country provides a broad climate default where possible. Check it against your local conditions; large countries and microclimates may need a different profile.",
+        "data": {
           "hemisphere": "Hemisphere",
           "climate": "Local climate profile",
           "weather_entity": "Weather entity",
@@ -15,6 +21,9 @@
           "categories": "Garden categories to include"
         }
       }
+    },
+    "error": {
+      "location_required": "Enter a country code and town or locality."
     }
   },
   "options": {
