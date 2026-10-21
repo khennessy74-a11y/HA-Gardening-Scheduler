@@ -11,7 +11,12 @@ from .const import DOMAIN
 from .coordinator import GardeningCoordinator
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up dashboard sensors."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([
         GardeningTasksSensor(coordinator, entry),
@@ -21,6 +26,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
 
 class GardeningBaseSensor(CoordinatorEntity, SensorEntity):
+    """Shared sensor metadata."""
+
     _attr_has_entity_name = True
 
     def __init__(self, coordinator, entry, key, name, icon):
@@ -31,9 +38,10 @@ class GardeningBaseSensor(CoordinatorEntity, SensorEntity):
 
 
 class GardeningTasksSensor(GardeningBaseSensor):
+    """Number of currently suggested gardening tasks."""
+
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "tasks_due", "Tasks due", "mdi:flower")
-        self._attr_native_unit_of_measurement = "tasks"
 
     @property
     def native_value(self):
@@ -41,15 +49,19 @@ class GardeningTasksSensor(GardeningBaseSensor):
 
     @property
     def extra_state_attributes(self):
+        if not self.coordinator.data:
+            return {}
         return {
             "tasks": self.coordinator.data.get("tasks", []),
             "location": self.coordinator.data.get("location"),
             "country": self.coordinator.data.get("country"),
             "climate": self.coordinator.data.get("climate"),
-        } if self.coordinator.data else {}
+        }
 
 
 class GardeningNextTaskSensor(GardeningBaseSensor):
+    """Next suggested gardening task."""
+
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "next_task", "Next task", "mdi:calendar-check")
 
@@ -59,6 +71,8 @@ class GardeningNextTaskSensor(GardeningBaseSensor):
 
 
 class GardeningFrostSensor(GardeningBaseSensor):
+    """Frost guidance based on current temperature and available daily lows."""
+
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry, "frost_risk", "Frost risk", "mdi:snowflake-alert")
 
@@ -66,12 +80,16 @@ class GardeningFrostSensor(GardeningBaseSensor):
     def native_value(self):
         if not self.coordinator.data:
             return "unknown"
-        return "risk" if self.coordinator.data.get("frost_risk") else "none_detected"
+        return self.coordinator.data.get("frost_status", "unknown")
 
     @property
     def extra_state_attributes(self):
+        if not self.coordinator.data:
+            return {}
         return {
             "advice": self.coordinator.data.get("frost_advice"),
-            "forecast_lows": self.coordinator.data.get("forecast_lows", []),
+            "forecast_lows_c": self.coordinator.data.get("forecast_lows_c", []),
+            "temperature_c": self.coordinator.data.get("temperature_c"),
+            "temperature_unit": "°C",
             "weather_entity": self.coordinator.data.get("weather_entity"),
-        } if self.coordinator.data else {}
+        }
