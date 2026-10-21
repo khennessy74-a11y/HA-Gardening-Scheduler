@@ -1,18 +1,14 @@
 """Gardening Scheduler integration."""
 from __future__ import annotations
 
-from datetime import timedelta
-import logging
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.helpers import config_validation as cv
 
 from .const import DOMAIN, PLATFORMS
 from .coordinator import GardeningCoordinator
 
-_LOGGER = logging.getLogger(__name__)
-SCAN_INTERVAL = timedelta(hours=6)
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -29,9 +25,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def complete_task(call: ServiceCall) -> None:
         task_id = call.data.get("task_id")
-        if not task_id:
-            return
-        coordinator.complete_task(task_id)
+        if task_id:
+            coordinator.complete_task(task_id)
 
     async def snooze_task(call: ServiceCall) -> None:
         task_id = call.data.get("task_id")
@@ -47,7 +42,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ("snooze_task", snooze_task),
         ("refresh", refresh),
     ):
-        hass.services.async_register(DOMAIN, service, handler)
+        if not hass.services.has_service(DOMAIN, service):
+            hass.services.async_register(DOMAIN, service, handler)
 
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
