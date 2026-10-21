@@ -2,12 +2,18 @@
   "config": {
     "step": {
       "user": {
-        "title": "Set up Gardening Scheduler",
-        "description": "Choose your location and weather source.",
+        "title": "Where is your garden?",
+        "description": "Choose your country and locality first.",
         "data": {
           "country": "Country code",
           "location": "Town or locality",
-          "postcode": "Postcode or ZIP code",
+          "postcode": "Postcode or ZIP code"
+        }
+      },
+      "preferences": {
+        "title": "Your garden and weather",
+        "description": "Review the suggested regional climate profile and select your weather entity.",
+        "data": {
           "hemisphere": "Hemisphere",
           "climate": "Local climate profile",
           "weather_entity": "Weather entity",
@@ -15,6 +21,9 @@
           "categories": "Garden categories"
         }
       }
+    },
+    "error": {
+      "location_required": "Enter a country code and town or locality."
     }
   },
   "options": {
