@@ -1,0 +1,30 @@
+complete_task:
+  name: Complete gardening task
+  description: Mark a gardening task as complete for today.
+  fields:
+    task_id:
+      name: Task ID
+      required: true
+      selector:
+        text:
+snooze_task:
+  name: Snooze gardening task
+  description: Hide a gardening task for a number of days.
+  fields:
+    task_id:
+      name: Task ID
+      required: true
+      selector:
+        text:
+    days:
+      name: Days
+      required: false
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 30
+          mode: box
+refresh:
+  name: Refresh gardening advice
+  description: Refresh seasonal tasks and weather data.
