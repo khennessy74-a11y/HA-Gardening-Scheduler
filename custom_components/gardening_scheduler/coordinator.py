@@ -1,13 +1,14 @@
 """Data coordinator and persistent task state."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import timedelta
 import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_CATEGORIES, CONF_CLIMATE, CONF_HEMISPHERE, CONF_WEATHER_ENTITY,
@@ -16,6 +17,7 @@ from .const import (
 from .tasks import TASKS
 
 _LOGGER = logging.getLogger(__name__)
+FROST_THRESHOLD_C = 2.0
 
 
 class GardeningCoordinator(DataUpdateCoordinator):
@@ -31,6 +33,19 @@ class GardeningCoordinator(DataUpdateCoordinator):
     @property
     def settings(self) -> dict:
         return {**self.entry.data, **self.entry.options}
+
+    def _celsius(self, value):
+        """Convert Home Assistant's configured temperature unit to Celsius."""
+        if value is None:
+            return None
+        try:
+            temperature = float(value)
+        except (TypeError, ValueError):
+            return None
+        unit = str(self.hass.config.units.temperature_unit).strip().lower()
+        if unit in {"°f", "f", "fahrenheit"}:
+            return (temperature - 32.0) * 5.0 / 9.0
+        return temperature
 
     async def _async_update_data(self) -> dict:
         if not self._store_loaded:
@@ -53,31 +68,30 @@ class GardeningCoordinator(DataUpdateCoordinator):
             if isinstance(response, dict):
                 entity_forecast = response.get(weather_entity, {})
                 forecast = entity_forecast.get("forecast", []) or []
-        except (Exception) as err:
+        except Exception as err:
             _LOGGER.debug("Daily forecast unavailable: %s", err)
 
+        # A daily high is not a safe substitute for a missing overnight low.
         lows = []
         for item in forecast[:5]:
-            value = item.get("templow")
-            if value is None:
-                value = item.get("temperature")
-            try:
-                if value is not None:
-                    lows.append(float(value))
-            except (TypeError, ValueError):
-                continue
+            low = self._celsius(item.get("templow"))
+            if low is not None:
+                lows.append(low)
 
-        current_temp = state.attributes.get("temperature")
-        try:
-            current_temp = float(current_temp) if current_temp is not None else None
-        except (TypeError, ValueError):
-            current_temp = None
-        frost_risk = (current_temp is not None and current_temp <= 2) or any(low <= 2 for low in lows)
+        current_temp = self._celsius(state.attributes.get("temperature"))
+        if current_temp is not None and current_temp <= FROST_THRESHOLD_C:
+            frost_status = "risk"
+        elif lows:
+            frost_status = "risk" if any(low <= FROST_THRESHOLD_C for low in lows) else "none_detected"
+        else:
+            frost_status = "unknown"
 
-        now = datetime.now().astimezone()
+        now = dt_util.now()
+        today = now.date().isoformat()
         month = now.month
         if settings.get(CONF_HEMISPHERE, "northern") == "southern":
             month = ((month + 5) % 12) + 1
+
         categories = set(settings.get(CONF_CATEGORIES, DEFAULT_CATEGORIES))
         climate = settings.get(CONF_CLIMATE, "unknown")
         active = []
@@ -87,11 +101,17 @@ class GardeningCoordinator(DataUpdateCoordinator):
             if "all" not in task["climates"] and climate not in task["climates"] and climate != "unknown":
                 continue
             record = self.task_state.get(task["id"], {})
-            if record.get("completed_on") == date.today().isoformat():
+            if record.get("completed_on") == today:
                 continue
-            if record.get("snoozed_until", "") >= date.today().isoformat():
+            if record.get("snoozed_until", "") >= today:
                 continue
             active.append({**task, "completed": False})
+
+        advice = {
+            "risk": "Potential frost: protect vulnerable plants and check local conditions.",
+            "none_detected": "No frost signal in the available overnight forecast. Check local conditions for exposed areas.",
+            "unknown": "Overnight forecast lows are unavailable; check your local forecast before leaving tender plants outside.",
+        }[frost_status]
 
         return {
             "tasks": active,
@@ -99,10 +119,10 @@ class GardeningCoordinator(DataUpdateCoordinator):
             "next_task": active[0]["title"] if active else "No tasks due",
             "weather_entity": weather_entity,
             "weather_state": state.state,
-            "temperature": current_temp,
-            "forecast_lows": lows,
-            "frost_risk": frost_risk,
-            "frost_advice": "Potential frost: protect vulnerable plants and check local conditions." if frost_risk else "No frost signal detected in available weather data.",
+            "temperature_c": current_temp,
+            "forecast_lows_c": lows,
+            "frost_status": frost_status,
+            "frost_advice": advice,
             "location": settings.get("location", ""),
             "country": settings.get("country", ""),
             "climate": climate,
@@ -111,13 +131,15 @@ class GardeningCoordinator(DataUpdateCoordinator):
 
     def complete_task(self, task_id: str) -> None:
         """Mark a task complete for today and persist."""
-        self.task_state[task_id] = {"completed_on": date.today().isoformat()}
+        self.task_state[task_id] = {"completed_on": dt_util.now().date().isoformat()}
         self.hass.async_create_task(self.store.async_save(self.task_state))
         self.hass.async_create_task(self.async_request_refresh())
 
     def snooze_task(self, task_id: str, days: int = 3) -> None:
         """Snooze a task for a bounded number of days."""
         days = max(1, min(int(days), 30))
-        self.task_state[task_id] = {"snoozed_until": (date.today() + timedelta(days=days)).isoformat()}
+        self.task_state[task_id] = {
+            "snoozed_until": (dt_util.now().date() + timedelta(days=days)).isoformat()
+        }
         self.hass.async_create_task(self.store.async_save(self.task_state))
         self.hass.async_create_task(self.async_request_refresh())
