@@ -52,7 +52,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if current is None:
             raise HomeAssistantError("Gardening Scheduler is not loaded")
 
-        target = current.settings.get(CONF_NOTIFY_SERVICE, "").strip()
+        target = str(current.settings.get(CONF_NOTIFY_SERVICE, "") or "").strip()
         if not target:
             raise HomeAssistantError(
                 "Set a notification service in Gardening Scheduler options first"
