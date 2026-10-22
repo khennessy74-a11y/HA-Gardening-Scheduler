@@ -12,14 +12,24 @@ Early development. This repository is not yet a validated HACS release. Do not i
 - Regional seasonal guidance across countries, not Ireland-only dates.
 - Forecast-aware frost advice using the configured Home Assistant weather entity.
 - Individually configurable task categories, with persistent complete/snooze actions.
-- Sensors suitable for a dashboard and notification service support.
+- Dashboard sensors for tasks due, the next task, and frost risk.
+- An optional notification digest sent through a configured Home Assistant `notify.*` service.
 - No changes to existing automations, helpers, or dashboards during setup.
 
 ## Development
 
 Integration domain: `gardening_scheduler`
 
-The first release will use curated regional task windows and the configured weather provider. Location text is saved as context; the integration does not send it to a third-party geocoding service. Seasonal dates are guidance, not a guarantee—microclimates, soil, exposure, and plant variety matter.
+The first release uses curated regional task windows and the configured weather provider. Location text is saved as context; the integration does not send it to a third-party geocoding service. Seasonal dates are guidance, not a guarantee—microclimates, soil, exposure, and plant variety matter.
+
+### Services
+
+- `gardening_scheduler.complete_task` — mark a task complete for today; requires `task_id`.
+- `gardening_scheduler.snooze_task` — hide a task for 1–30 days; requires `task_id`, with optional `days` (default 3).
+- `gardening_scheduler.refresh` — refresh seasonal tasks and weather data.
+- `gardening_scheduler.send_digest` — send the current task list to the configured notification service.
+
+For the digest, open the integration's options and enter a Home Assistant notification service such as `notify.mobile_app_your_phone`. Then call `gardening_scheduler.send_digest` manually or from your own automation. The integration does not create automations or send scheduled notifications by itself.
 
 ## Planned validation before release
 
