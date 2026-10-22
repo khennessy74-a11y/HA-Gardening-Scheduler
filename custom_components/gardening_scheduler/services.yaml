@@ -28,3 +28,6 @@ snooze_task:
 refresh:
   name: Refresh gardening advice
   description: Refresh seasonal tasks and weather data.
+send_digest:
+  name: Send gardening task digest
+  description: Send the current gardening task list to the configured notification service.
