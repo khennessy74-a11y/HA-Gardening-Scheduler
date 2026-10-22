@@ -1,4 +1,4 @@
-""""Gardening Scheduler integration."""
+"""Gardening Scheduler integration."""
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
@@ -110,4 +110,3 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload when options change."""
     await hass.config_entries.async_reload(entry.entry_id)
-"
